@@ -1,0 +1,14 @@
+diff --git a/a.ts b/a.ts
+index 1111111..2222222 100644
+--- a/a.ts
++++ b/a.ts
+@@ -10,2 +10,3 @@
+ const x = 1;
++const y = 2;
+diff --git a/b.ts b/b.ts
+index 3333333..4444444 100644
+--- a/b.ts
++++ b/b.ts
+@@ -1,1 +1,2 @@
++import fs from "fs";
+ export {};
