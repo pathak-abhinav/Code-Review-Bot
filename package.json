@@ -1,0 +1,39 @@
+{
+  "name": "review-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI code review GitHub App",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "worker": "node dist/worker.js",
+    "dev": "concurrently \"npm run dev:app\" \"npm run dev:worker\"",
+    "dev:app": "tsx watch src/index.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "@octokit/auth-app": "^7.1.4",
+    "@octokit/rest": "^21.0.2",
+    "bullmq": "^5.34.5",
+    "dotenv": "^16.4.7",
+    "ioredis": "^5.4.2",
+    "pg": "^8.13.1",
+    "probot": "^13.4.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
