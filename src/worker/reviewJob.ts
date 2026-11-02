@@ -12,6 +12,7 @@ import {
 } from "../db/reviews.js";
 import { parseUnifiedDiff } from "../diff/parseUnifiedDiff.js";
 import { combineFindings } from "../findings/combine.js";
+import { dropAlreadyPosted } from "../findings/dedupe.js";
 import {
   fetchFileContentAtRef,
   fetchPullRequestDiff,
@@ -21,6 +22,8 @@ import { filterTouchedPaths } from "../github/ignorePaths.js";
 import { createInstallationOctokit } from "../github/octokitApp.js";
 import {
   buildSummaryMarkdown,
+  fetchExistingReviewComments,
+  formatCommentBody,
   postPullRequestReview,
 } from "../github/postReview.js";
 import type { Octokit } from "@octokit/rest";
@@ -100,12 +103,25 @@ export async function processReviewJob(
     }
     const llmFindings = llmGroups.flat();
 
-    const finalFindings = combineFindings(
+    const candidates = combineFindings(
       semgrepFindings,
       llmFindings,
       parsed.changedLines,
     );
-    const summary = buildSummaryMarkdown(finalFindings);
+    const existing = await fetchExistingReviewComments(octokit, {
+      owner,
+      repo,
+      pullNumber,
+    });
+    const finalFindings = dropAlreadyPosted(
+      candidates,
+      existing,
+      formatCommentBody,
+    );
+    const summary = buildSummaryMarkdown(
+      finalFindings,
+      candidates.length - finalFindings.length,
+    );
 
     if (await isSuperseded(octokit, payload)) {
       await markSuperseded(payload);
