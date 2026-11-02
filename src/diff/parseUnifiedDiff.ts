@@ -88,10 +88,9 @@ function parseFileHunks(
 
     while (i < lines.length) {
       const h = lines[i];
-      if (h.startsWith("diff --git ") || h.match(HUNK_HEADER)) {
-        if (h.match(HUNK_HEADER) && hunkLines.length > 0) break;
-        if (h.startsWith("diff --git ")) break;
-      }
+      // Any new hunk header or file header ends this hunk, even if the buffer
+      // was just flushed at the chunk limit (hunkLines empty).
+      if (h.startsWith("diff --git ") || HUNK_HEADER.test(h)) break;
 
       if (h.startsWith("\\ No newline")) {
         i++;
