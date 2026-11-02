@@ -25,11 +25,24 @@ export function getReviewQueue(): Queue<ReviewJobPayload> {
   return queue;
 }
 
+/**
+ * Enqueue a review for a commit. BullMQ silently ignores `add` when a job with the same id
+ * still exists, so a failed (or retained completed) job is removed first to allow a re-review.
+ * Returns false when an identical job is already waiting or running.
+ */
 export async function enqueueReviewJob(
   payload: ReviewJobPayload,
-): Promise<void> {
-  const q = getReviewQueue();
-  await q.add("review", payload, {
-    jobId: `${payload.installationId}-${payload.owner}-${payload.repo}-${payload.pullNumber}-${payload.headSha}`,
-  });
+  q: Pick<Queue<ReviewJobPayload>, "add" | "getJob"> = getReviewQueue(),
+): Promise<boolean> {
+  const jobId = `${payload.installationId}-${payload.owner}-${payload.repo}-${payload.pullNumber}-${payload.headSha}`;
+
+  const existing = await q.getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state !== "failed" && state !== "completed") return false;
+    await existing.remove();
+  }
+
+  await q.add("review", payload, { jobId });
+  return true;
 }

@@ -15,6 +15,20 @@ export async function fetchPullRequestDiff(
   return response.data as unknown as string;
 }
 
+export async function fetchPullRequestHeadSha(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  pullNumber: number,
+): Promise<string> {
+  const { data } = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: pullNumber,
+  });
+  return data.head.sha;
+}
+
 export async function fetchFileContentAtRef(
   octokit: Octokit,
   owner: string,

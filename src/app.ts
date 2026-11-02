@@ -6,6 +6,7 @@ import {
   hasCompletedRun,
   hasProcessedDelivery,
   recordDelivery,
+  updateReviewRunStatus,
 } from "./db/reviews.js";
 import { logInfo, logWarn } from "./log.js";
 import { enqueueReviewJob } from "./queue/producer.js";
@@ -69,7 +70,7 @@ export default (app: Probot, options: ApplicationFunctionOptions): void => {
         headSha,
       });
 
-      await enqueueReviewJob({
+      const enqueued = await enqueueReviewJob({
         installationId,
         owner,
         repo,
@@ -80,6 +81,21 @@ export default (app: Probot, options: ApplicationFunctionOptions): void => {
       });
 
       await recordDelivery(correlationId, context.name);
+
+      if (!enqueued) {
+        await updateReviewRunStatus(
+          runId,
+          "skipped",
+          "A review for this commit is already queued or running.",
+        );
+        logInfo("Review already in flight for this commit; skipping", {
+          correlationId,
+          runId,
+          headSha,
+          pullNumber,
+        });
+        return;
+      }
 
       logInfo("Review job queued", {
         correlationId,
