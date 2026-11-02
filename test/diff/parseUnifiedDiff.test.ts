@@ -32,4 +32,25 @@ describe("parseUnifiedDiff", () => {
     expect(lines.has(1)).toBe(true);
     expect(lines.has(22)).toBe(true);
   });
+  it("keeps correct line numbers for a hunk that follows a hunk ending exactly at the chunk limit", () => {
+    const max = 5;
+    const first = Array.from({ length: max }, (_, k) => `+a${k}`).join("\n");
+    const diff = [
+      "diff --git a/f.ts b/f.ts",
+      "--- a/f.ts",
+      "+++ b/f.ts",
+      `@@ -1,0 +1,${max} @@`,
+      first,
+      "@@ -100,0 +200,1 @@",
+      "+second",
+      "",
+    ].join("\n");
+
+    const result = parseUnifiedDiff(diff, max);
+
+    expect(result.changedLines.get("f.ts")).toEqual(
+      new Set([1, 2, 3, 4, 5, 200]),
+    );
+    expect(result.chunks.at(-1)!.numberedContent).toContain("200|+second");
+  });
 });

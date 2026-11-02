@@ -11,8 +11,7 @@ import {
   updateReviewRunStatus,
 } from "../db/reviews.js";
 import { parseUnifiedDiff } from "../diff/parseUnifiedDiff.js";
-import { filterAndRankFindings } from "../findings/filter.js";
-import { mergeFindings } from "../findings/merge.js";
+import { combineFindings } from "../findings/combine.js";
 import {
   fetchFileContentAtRef,
   fetchPullRequestDiff,
@@ -101,8 +100,11 @@ export async function processReviewJob(
     }
     const llmFindings = llmGroups.flat();
 
-    const merged = mergeFindings(semgrepFindings, llmFindings);
-    const finalFindings = filterAndRankFindings(merged, parsed.changedLines);
+    const finalFindings = combineFindings(
+      semgrepFindings,
+      llmFindings,
+      parsed.changedLines,
+    );
     const summary = buildSummaryMarkdown(finalFindings);
 
     if (await isSuperseded(octokit, payload)) {
