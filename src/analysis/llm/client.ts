@@ -4,6 +4,30 @@ import type { Finding } from "../../types.js";
 import { buildReviewMessages } from "./prompt.js";
 import { parseLlmFindings } from "./parseResponse.js";
 
+const MAX_RATE_LIMIT_RETRIES = 5;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryAfterMs(res: Response, attempt: number): number {
+  const seconds = parseFloat(res.headers.get("retry-after") ?? "");
+  const fallback = 2000 * 2 ** (attempt - 1);
+  const ms = Number.isFinite(seconds) ? seconds * 1000 + 500 : fallback;
+  return Math.min(ms, 60_000);
+}
+
+function postChatCompletion(body: unknown): Promise<Response> {
+  return fetch(`${config.llmBaseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.llmApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 export async function reviewChunkWithLlm(
   chunk: DiffChunk,
   repoRules: string,
@@ -20,14 +44,19 @@ export async function reviewChunkWithLlm(
     temperature: 0.2,
   };
 
-  const res = await fetch(`${config.llmBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.llmApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  let res = await postChatCompletion(body);
+  for (
+    let attempt = 1;
+    res.status === 429 && attempt <= MAX_RATE_LIMIT_RETRIES;
+    attempt++
+  ) {
+    const waitMs = retryAfterMs(res, attempt);
+    console.warn(
+      `LLM rate limited; retrying in ${waitMs}ms (${attempt}/${MAX_RATE_LIMIT_RETRIES})`,
+    );
+    await sleep(waitMs);
+    res = await postChatCompletion(body);
+  }
 
   if (!res.ok) {
     const errText = await res.text();
